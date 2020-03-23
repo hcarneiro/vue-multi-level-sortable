@@ -1,58 +1,133 @@
+/* eslint-disable */
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
-  </div>
+  <fragment>
+    <template v-for="(item, index) in tree">
+      <div
+        class="sortable-item"
+        :data-depth="getDepth()"
+        :data-index="getIndex(index)"
+        :data-key="getKey(index)"
+        :key="getKey(index)"
+        v-drag
+      >
+        <div
+          v-for="(item, index) in getIndentation(getDepth())"
+          :key="index"
+          class="item-indentation"
+        ></div>
+        <div class="item-wrapper">
+          <div class="inner-item-wrapper">
+            <div class="item-icon"></div>
+            <div class="item-title">{{ item.title }}</div>
+          </div>
+        </div>
+      </div>
+      <Multi-Level-Sortable
+        :tree="item.children"
+        :parent-depth="getDepth()"
+        :parent-index="getIndex(index)"
+        :key="getKey(index + 0.5)"
+      ></Multi-Level-Sortable>
+    </template>
+  </fragment>
 </template>
 
 <script>
 export default {
-  name: 'HelloWorld',
+  name: 'MultiLevelSortable',
   props: {
-    msg: String,
+    tree: {
+      type: Array,
+      default() {
+        return [];
+      },
+    },
+    parentDepth: {
+      type: Number,
+    },
+    parentIndex: {
+      type: Number,
+    },
+  },
+  directives: {
+    drag: {
+      bind(el) {
+        /* eslint-disable no-inner-declarations */
+
+        // const expression = binding.expression;
+        if (el) {
+          function dragElement(elmnt) {
+            let pos1 = 0;
+            let pos2 = 0;
+            let pos3 = 0;
+            let pos4 = 0;
+            const element = elmnt;
+
+            function isInViewPort(elem) {
+              const bounding = elem.getBoundingClientRect();
+
+              return (elem.offsetTop - pos2 >= 1
+                && elem.offsetLeft - pos1 >= 1
+                && (bounding.right - pos1 <= (window.innerWidth
+                  || document.documentElement.clientWidth)
+                && bounding.bottom - pos2 <= (window.innerHeight
+                  || document.documentElement.clientHeight)));
+            }
+
+            function elementDrag(e) {
+              const event = e || window.event;
+
+              // calculate the new cursor position:
+              pos1 = pos3 - event.clientX;
+              pos2 = pos4 - event.clientY;
+              pos3 = event.clientX;
+              pos4 = event.clientY;
+
+              // set the element's new position:
+              if (isInViewPort(element)) {
+                element.style.top = `${element.offsetTop - pos2}px`;
+                element.style.left = `${element.offsetLeft - pos1}px`;
+              }
+            }
+
+            function closeDragElement() {
+              /* stop moving when mouse button is released: */
+              document.onmouseup = null;
+              document.onmousemove = null;
+            }
+
+            function dragMouseDown(e) {
+              const event = e || window.event;
+
+              // get the mouse cursor position at startup:
+              pos3 = event.clientX;
+              pos4 = event.clientY;
+
+              document.onmouseup = closeDragElement;
+              document.onmousemove = elementDrag;
+            }
+
+            element.onmousedown = dragMouseDown;
+          }
+
+          dragElement(el);
+        }
+      },
+    },
+  },
+  methods: {
+    getDepth() {
+      return typeof this.parentDepth !== 'undefined' ? this.parentDepth + 1 : 1;
+    },
+    getIndex(index) {
+      return index;
+    },
+    getKey(index) {
+      return typeof this.parentIndex !== 'undefined' ? `${this.parentIndex}.${index}` : `${index}`;
+    },
+    getIndentation(depth) {
+      return new Array(depth);
+    },
   },
 };
 </script>
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
-</style>
