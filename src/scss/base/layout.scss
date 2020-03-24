@@ -43,6 +43,7 @@
 
     .sortable-item {
       width: 100%;
+      min-height: 24px;
       cursor: default;
       user-select: none;
       background: #404040;
@@ -51,11 +52,18 @@
       align-items: center;
       padding-right: 10px;
       padding-left: 10px;
-      line-height: 24px;
       color: #ffffff;
 
       &:hover {
         background-color: #4d4d4d;
+      }
+
+      &.sortable-chosen {
+        background-color: #109155;
+      }
+
+      &.sortable-fallback {
+        display: none;
       }
 
       .item-content {

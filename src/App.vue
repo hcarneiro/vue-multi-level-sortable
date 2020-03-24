@@ -49,6 +49,11 @@ export default {
 
     this.sortable = Sortable.create(sortableArea, {
       group: 'nested',
+      direction: 'vertival',
+      swapThreshold: 0.40,
+      invertSwap: true,
+      animation: 500,
+      forceFallback: true,
     });
   },
 };
