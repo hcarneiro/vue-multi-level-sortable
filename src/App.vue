@@ -3,7 +3,7 @@
     <h1 class="title is-1">Vue Multi-level Sortable</h1>
     <div class="container main-sortable-container">
       <div class="sortable-title">Sortable items</div>
-      <div class="inner-sortable-container">
+      <div ref="sortableArea" class="inner-sortable-container">
         <Multi-Level-Sortable :tree="data"></Multi-Level-Sortable>
       </div>
     </div>
@@ -11,12 +11,14 @@
 </template>
 
 <script>
-import MultiLevelSortable from './components/MultiLevelSortable.vue';
+import Sortable from 'sortablejs';
+import MultiLevelSortable from './components/MultiLevelSortable';
 
 export default {
   name: 'App',
   data() {
     return {
+      sortable: undefined,
       data: [
         {
           title: 'Header',
@@ -41,6 +43,13 @@ export default {
   },
   components: {
     MultiLevelSortable,
+  },
+  mounted() {
+    const { sortableArea } = this.$refs;
+
+    this.sortable = Sortable.create(sortableArea, {
+      group: 'nested',
+    });
   },
 };
 </script>
