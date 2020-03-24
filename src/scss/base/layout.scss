@@ -42,7 +42,6 @@
     transform: translate3d(0px, 0px, 0px);
 
     .sortable-item {
-      position: absolute;
       width: 100%;
       cursor: default;
       user-select: none;
@@ -59,30 +58,35 @@
         background-color: #4d4d4d;
       }
 
-      .item-indentation {
-        width: 12px;
-        height: 24px;
-      }
-
-      .item-wrapper {
-        flex: 1 1 0%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        position: relative;
+      .item-content {
         display: flex;
-        align-items: center;
+        flex: 1 1 0%;
 
-        .item-icon {
-          padding-right: 4px;
+        .item-indentation {
+          width: 12px;
+          height: 24px;
         }
 
-        .item-title {
+        .item-wrapper {
           flex: 1 1 0%;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
-          font-size: 12px;
+          position: relative;
+          display: flex;
+          align-items: center;
+
+          .item-icon {
+            padding-right: 4px;
+          }
+
+          .item-title {
+            flex: 1 1 0%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+          }
         }
       }
     }
