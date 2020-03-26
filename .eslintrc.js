@@ -1,17 +1,18 @@
 module.exports = {
   root: true,
-  env: {
-    node: true,
-  },
-  extends: [
-    'plugin:vue/essential',
-    '@vue/airbnb',
-  ],
+  parser: 'babel-eslint',
   parserOptions: {
-    parser: 'babel-eslint',
+    sourceType: 'module'
   },
-  rules: {
-    'no-console': process.env.NODE_ENV === 'production' ? 'error' : 'off',
-    'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off',
-  },
-};
+  extends: 'airbnb-base',
+  // required to lint *.vue files
+  plugins: [
+    'html'
+  ],
+  // add your custom rules here
+  'rules': {
+    'import/no-unresolved': 0,
+    // allow debugger during development
+    'no-debugger': process.env.NODE_ENV === 'production' ? 2 : 0
+  }
+}
