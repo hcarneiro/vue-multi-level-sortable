@@ -42,6 +42,9 @@
     transform: translate3d(0px, 0px, 0px);
 
     .sortable-item {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
       min-height: 24px;
       cursor: default;
@@ -88,6 +91,10 @@
             font-size: 12px;
           }
         }
+      }
+
+      * {
+        pointer-events: none;
       }
     }
   }
