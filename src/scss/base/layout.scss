@@ -56,9 +56,18 @@
       padding-right: 10px;
       padding-left: 10px;
       color: #ffffff;
+      z-index: 1;
+
+      &:not(.sortable-selected) {
+        @include transition(transform 0.15s cubic-bezier(1, 0, 0, 1));
+      }
 
       &:hover {
         background-color: #4d4d4d;
+      }
+
+      &.sortable-selected {
+        z-index: 2;
       }
 
       .item-content {
