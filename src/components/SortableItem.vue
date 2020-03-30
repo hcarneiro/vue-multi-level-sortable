@@ -117,7 +117,7 @@ export default {
         containerLimit.bottom,
         Math.max(
           containerLimit.top,
-          translateY + (this.element.offsetTop - this.pos2)
+          translateY + ((this.element.offsetTop - this.pos2) / 5) // Creates resistance
         )
       );
 
@@ -128,6 +128,8 @@ export default {
       const isGoingUp = yPosition < translateY;
 
       this.item.translateY = yPosition;
+
+      // TODO: Only move to new position when past hovering item
 
       // Find the index of the item being hovered by their position
       const itemIndex = findIndex(this.$parent.flatData, (itemData) => {
