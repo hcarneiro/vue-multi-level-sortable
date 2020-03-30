@@ -9,5 +9,5 @@ Vue.use(Buefy);
 /* eslint-disable no-new */
 new Vue({
   el: 'body',
-  components: { App },
+  components: { App }
 });
