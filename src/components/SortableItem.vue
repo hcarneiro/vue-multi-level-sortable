@@ -30,7 +30,10 @@ export default {
       pos1: 0,
       pos2: 0,
       pos3: 0,
-      element: undefined
+      element: undefined,
+      sortingDirection: 'none',
+      moved: false,
+      animationDuration: 150
     };
   },
   props: {
@@ -54,6 +57,32 @@ export default {
     }
   },
   methods: {
+    animateValue(params) {
+      const data = params || {};
+      data.duration = data.duration || this.animationDuration;
+
+      let startTimestamp = null;
+
+      const step = (timestamp) => {
+        if (!startTimestamp) {
+          startTimestamp = timestamp;
+        }
+
+        const progress = Math.min((timestamp - startTimestamp) / data.duration, 1);
+        data.item.translateY = Math.floor(progress * (data.end - data.start) + data.start);
+
+        if (progress < 1) {
+          window.requestAnimationFrame(step);
+        }
+      };
+
+      window.requestAnimationFrame(step);
+    },
+    setMoved(value) {
+      const moved = typeof value !== 'undefined' ? value : !this.moved;
+
+      this.moved = moved;
+    },
     getTranslateY() {
       const trans = getComputedStyle(this.element).getPropertyValue('transform');
       const matrix = trans.replace(/[^0-9\-.,]/g, '').split(',');
@@ -62,31 +91,52 @@ export default {
       return translateY;
     },
     closeDragElement() {
-      this.element.classList.remove('sortable-selected');
+      this.element.classList.remove('sortable-selected', 'sortable-jump');
 
       document.onmouseup = null;
       document.onmousemove = null;
 
-      // Snap to a multiple of 24
-      this.item.translateY = this.roundToMultiple(this.getTranslateY());
-      this.item.top = this.roundToMultiple(this.getTranslateY());
+      this.item.translateY = this.snapToPosition({
+        value: this.getTranslateY(),
+        reset: true
+      });
+      this.item.top = this.snapToPosition({
+        value: this.getTranslateY(),
+        reset: true
+      });
 
       bus.$emit('reoder-data');
+      this.setMoved(false);
     },
-    roundToMultiple(n) {
+    snapToPosition(params) {
+      const data = params || {};
+
+      let lastItemPosition;
+
       const lastItemIndex = this.fullData.length - 1;
       const indexDifference = lastItemIndex - this.index;
       const increment = indexDifference > 0 ? this.defaultTop + 1 : 1;
-      const lastItemPosition = this.fullData[lastItemIndex].top;
 
-      if (n > lastItemPosition) {
+      if (data.itemHovered) {
+        lastItemPosition = data.itemHovered.top;
+      } else {
+        lastItemPosition = this.fullData[lastItemIndex].top;
+      }
+
+      if (data.value > lastItemPosition) {
         const newNumber = lastItemPosition + increment;
 
         return Math.floor(newNumber / 24.0) * 24;
       }
 
-      if (n > 24) {
-        return Math.floor(n / 24.0) * 24;
+      if (data.reset) {
+        return this.sortingDirection === 'up'
+          ? Math.ceil(data.value / 24.0) * 24
+          : Math.floor(data.value / 24.0) * 24;
+      }
+
+      if (data.value > 24) {
+        return Math.floor(data.value / 24.0) * 24;
       }
 
       return 0;
@@ -102,6 +152,7 @@ export default {
       // Get the translateY value
       const translateY = this.getTranslateY();
 
+      // TODO: Divide into function to handle vertical drags and horizontal drags
       // console.log('Horizontal size', this.element.offsetLeft - this.pos1);
       // element.style.left = `${element.offsetLeft - pos1}px`;
 
@@ -125,16 +176,24 @@ export default {
       this.element.classList.add('sortable-selected');
 
       const elementIndex = parseInt(this.element.getAttribute('data-sort'), 10);
-      const isGoingUp = yPosition < translateY;
+      this.sortingDirection = yPosition <= translateY
+        ? 'up'
+        : 'down';
 
       this.item.translateY = yPosition;
 
-      // TODO: Only move to new position when past hovering item
-
       // Find the index of the item being hovered by their position
-      const itemIndex = findIndex(this.$parent.flatData, (itemData) => {
-        return yPosition >= itemData.top
-          && yPosition <= (itemData.top + this.defaultTop)
+      const itemIndex = findIndex(this.fullData, (itemData) => {
+        const dragPadding = 5;
+        const topMargin = this.sortingDirection === 'up'
+          ? yPosition >= itemData.top
+          : yPosition >= itemData.top - (this.defaultTop - dragPadding);
+        const bottomMargin = this.sortingDirection === 'up'
+          ? yPosition <= itemData.top + (this.defaultTop - dragPadding)
+          : yPosition <= itemData.top;
+
+        return topMargin
+          && bottomMargin
           && itemData !== this.item;
       });
 
@@ -143,12 +202,38 @@ export default {
       }
 
       // Move hovered item
-      const itemHovered = this.$parent.flatData[itemIndex];
-      const newDefaultTop = isGoingUp ? this.defaultTop : -this.defaultTop;
+      const itemHovered = this.fullData[itemIndex];
+      const newDefaultTop = this.sortingDirection === 'up'
+        ? this.defaultTop
+        : -this.defaultTop;
 
-      // Update hovered item position
-      itemHovered.translateY = itemHovered.top + newDefaultTop;
+      // Update hovered item's position
+      this.animateValue({
+        item: itemHovered,
+        start: itemHovered.translateY,
+        end: itemHovered.top + newDefaultTop,
+        duration: this.animationDuration
+      });
+
       itemHovered.top = itemHovered.top + newDefaultTop;
+
+      bus.$emit('reoder-data');
+
+      // Snap into new position
+      this.$nextTick(() => {
+        this.animateValue({
+          item: this.item,
+          start: this.item.translateY,
+          end: this.snapToPosition({
+            value: this.getTranslateY(),
+            itemHovered
+          }),
+          duration: this.animationDuration
+        });
+      });
+
+      // Set moved flag
+      this.setMoved(true);
     },
     dragMouseDown(evt) {
       const event = evt || window.event;

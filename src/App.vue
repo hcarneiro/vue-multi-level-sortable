@@ -98,7 +98,7 @@ export default {
       return flatData;
     },
     reorderData() {
-      const newData = orderBy(this.flatData, 'top', 'asc');
+      const newData = orderBy(this.flatData, 'translateY', 'asc');
 
       newData.forEach((item, index) => {
         this.flatData.$set(index, item);
