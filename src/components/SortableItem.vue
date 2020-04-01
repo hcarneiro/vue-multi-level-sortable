@@ -35,7 +35,8 @@ export default {
       element: undefined,
       sortingDirection: 'none',
       moved: false,
-      animationDuration: 150
+      animationDuration: 150,
+      dragPadding: 5
     };
   },
   props: {
@@ -88,7 +89,7 @@ export default {
       return translateY;
     },
     dragElementEnd() {
-      this.element.classList.remove('sortable-selected');
+      this.element.classList.remove('sortable-selected', 'vertical-panning');
 
       this.item.translateY = this.snapToPosition({
         value: this.getTranslateY(),
@@ -134,42 +135,24 @@ export default {
 
       return 0;
     },
-    dragElement(evt) {
-      const event = evt || window.event;
-
-      // Calculate the new cursor position:
-      this.positionX = this.pointerY - event.center.x;
-      this.positionY = this.pointerY - event.center.y;
-      this.pointerY = event.center.y;
+    moveVertically(params) {
+      const options = params || {};
 
       // Get the translateY value
       const translateY = this.getTranslateY();
 
-      // TODO: Divide into function to handle vertical drags and horizontal drags
-      // console.log('Horizontal size', this.element.offsetLeft - this.positionX);
-      // element.style.left = `${element.offsetLeft - this.positionX}px`;
-
-      // Create draggable limits
-      const containerLimit = {
-        top: 0,
-        bottom: document.querySelector('.inner-sortable-container').offsetHeight
-          - this.element.offsetHeight - 1 // 1px of top border
-      };
-
       // Min and Max position given the limits
       const yPosition = Math.min(
-        containerLimit.bottom,
+        options.limits.bottom,
         Math.max(
-          containerLimit.top,
+          options.limits.top,
           // Creates resistance
           translateY + ((this.element.offsetTop - this.positionY) / 5)
         )
       );
 
-      // Move element
-      this.element.classList.add('sortable-selected');
-
       const elementIndex = parseInt(this.element.getAttribute('data-sort'), 10);
+
       this.sortingDirection = yPosition <= translateY
         ? 'up'
         : 'down';
@@ -178,12 +161,11 @@ export default {
 
       // Find the index of the item being hovered by their position
       const itemIndex = findIndex(this.fullData, (itemData) => {
-        const dragPadding = 5;
         const topMargin = this.sortingDirection === 'up'
           ? yPosition >= itemData.top
-          : yPosition >= itemData.top - (this.defaultTop - dragPadding);
+          : yPosition >= itemData.top - (this.defaultTop - this.dragPadding);
         const bottomMargin = this.sortingDirection === 'up'
-          ? yPosition <= itemData.top + (this.defaultTop - dragPadding)
+          ? yPosition <= itemData.top + (this.defaultTop - this.dragPadding)
           : yPosition <= itemData.top;
 
         return topMargin
@@ -194,6 +176,8 @@ export default {
       if (itemIndex < 0 || itemIndex === elementIndex) {
         return;
       }
+
+      this.element.classList.add('vertical-panning');
 
       // Move hovered item
       const itemHovered = this.fullData[itemIndex];
@@ -211,19 +195,41 @@ export default {
 
       itemHovered.top = itemHovered.top + newDefaultTop;
 
-      bus.$emit('reoder-data');
-
       // Snap into new position
-      this.$nextTick(() => {
-        this.animateValue({
-          item: this.item,
-          start: this.item.translateY,
-          end: this.snapToPosition({
-            value: this.getTranslateY(),
-            itemHovered
-          }),
-          duration: this.animationDuration
-        });
+      this.animateValue({
+        item: this.item,
+        start: this.item.translateY,
+        end: this.snapToPosition({
+          value: this.getTranslateY(),
+          itemHovered
+        }),
+        duration: this.animationDuration
+      });
+    },
+    dragElement(evt) {
+      const event = evt || window.event;
+
+      // Calculate the new cursor position:
+      this.positionX = this.pointerY - event.center.x;
+      this.positionY = this.pointerY - event.center.y;
+      this.pointerY = event.center.y;
+
+      // console.log('Horizontal size', this.element.offsetLeft - this.positionX);
+
+      // Create draggable limits
+      const containerLimit = {
+        top: 0,
+        right: document.querySelector('.inner-sortable-container').offsetWidth,
+        bottom: document.querySelector('.inner-sortable-container').offsetHeight
+          - this.element.offsetHeight - 1, // 1px of top border
+        left: 0
+      };
+
+      // Move element
+      this.element.classList.add('sortable-selected');
+
+      this.moveVertically({
+        limits: containerLimit
       });
     },
     dragElementStart(evt) {
