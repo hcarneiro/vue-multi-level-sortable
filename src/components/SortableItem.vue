@@ -18,6 +18,7 @@
 </template>
 
 <script>
+import Hammer from 'hammerjs/hammer';
 import {
   findIndex
 } from 'lodash';
@@ -26,10 +27,11 @@ import bus from '../libs/bus';
 export default {
   data() {
     return {
+      hammer: undefined,
       defaultTop: 24,
-      pos1: 0,
-      pos2: 0,
-      pos3: 0,
+      positionX: 0,
+      positionY: 0,
+      pointerY: 0,
       element: undefined,
       sortingDirection: 'none',
       moved: false,
@@ -78,11 +80,6 @@ export default {
 
       window.requestAnimationFrame(step);
     },
-    setMoved(value) {
-      const moved = typeof value !== 'undefined' ? value : !this.moved;
-
-      this.moved = moved;
-    },
     getTranslateY() {
       const trans = getComputedStyle(this.element).getPropertyValue('transform');
       const matrix = trans.replace(/[^0-9\-.,]/g, '').split(',');
@@ -90,11 +87,8 @@ export default {
 
       return translateY;
     },
-    closeDragElement() {
-      this.element.classList.remove('sortable-selected', 'sortable-jump');
-
-      document.onmouseup = null;
-      document.onmousemove = null;
+    dragElementEnd() {
+      this.element.classList.remove('sortable-selected');
 
       this.item.translateY = this.snapToPosition({
         value: this.getTranslateY(),
@@ -106,7 +100,6 @@ export default {
       });
 
       bus.$emit('reoder-data');
-      this.setMoved(false);
     },
     snapToPosition(params) {
       const data = params || {};
@@ -141,20 +134,20 @@ export default {
 
       return 0;
     },
-    elementDrag(evt) {
+    dragElement(evt) {
       const event = evt || window.event;
 
       // Calculate the new cursor position:
-      this.pos1 = this.pos3 - event.clientX;
-      this.pos2 = this.pos3 - event.clientY;
-      this.pos3 = event.clientY;
+      this.positionX = this.pointerY - event.center.x;
+      this.positionY = this.pointerY - event.center.y;
+      this.pointerY = event.center.y;
 
       // Get the translateY value
       const translateY = this.getTranslateY();
 
       // TODO: Divide into function to handle vertical drags and horizontal drags
-      // console.log('Horizontal size', this.element.offsetLeft - this.pos1);
-      // element.style.left = `${element.offsetLeft - pos1}px`;
+      // console.log('Horizontal size', this.element.offsetLeft - this.positionX);
+      // element.style.left = `${element.offsetLeft - this.positionX}px`;
 
       // Create draggable limits
       const containerLimit = {
@@ -168,7 +161,8 @@ export default {
         containerLimit.bottom,
         Math.max(
           containerLimit.top,
-          translateY + ((this.element.offsetTop - this.pos2) / 5) // Creates resistance
+          // Creates resistance
+          translateY + ((this.element.offsetTop - this.positionY) / 5)
         )
       );
 
@@ -231,24 +225,26 @@ export default {
           duration: this.animationDuration
         });
       });
-
-      // Set moved flag
-      this.setMoved(true);
     },
-    dragMouseDown(evt) {
+    dragElementStart(evt) {
       const event = evt || window.event;
 
       this.element = event.target;
 
-      // get the mouse cursor position at startup:
-      this.pos3 = event.clientY;
-      document.onmouseup = this.closeDragElement;
-      document.onmousemove = this.elementDrag;
+      this.pointerY = event.clientY;
     },
     attachHandlers() {
       const element = this.$els.sortableitem;
 
-      element.onmousedown = this.dragMouseDown;
+      this.hammer = new Hammer.Manager(element, {
+        recognizers: [
+          [Hammer.Pan, { direction: Hammer.DIRECTION_ALL }]
+        ]
+      });
+
+      this.hammer.on('pan', this.dragElement);
+      this.hammer.on('panstart', this.dragElementStart);
+      this.hammer.on('panend', this.dragElementEnd);
     }
   },
   ready() {
