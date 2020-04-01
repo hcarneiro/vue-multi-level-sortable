@@ -49,7 +49,7 @@
       min-height: 24px;
       cursor: default;
       user-select: none;
-      background-color: #404040;
+      background: #404040;
       transform: translate3d(0px, 0px, 0px);
       display: flex;
       align-items: center;
@@ -58,15 +58,12 @@
       color: #ffffff;
       z-index: 1;
 
-      @include transition(background-color 0.15s ease-out);
-
       &:hover {
         background-color: #4d4d4d;
       }
 
       &.sortable-selected {
         z-index: 2;
-        background-color: rgb(59, 121, 195);
       }
 
       .item-content {
