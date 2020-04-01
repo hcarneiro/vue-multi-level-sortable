@@ -58,12 +58,15 @@
       color: #ffffff;
       z-index: 1;
 
+      @include transition(background-color 0.15s ease-out);
+
       &:hover {
         background-color: #4d4d4d;
       }
 
       &.sortable-selected {
         z-index: 2;
+        background-color: rgb(59, 121, 195);
       }
 
       .item-content {

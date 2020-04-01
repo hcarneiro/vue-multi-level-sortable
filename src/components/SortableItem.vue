@@ -88,7 +88,7 @@ export default {
       return translateY;
     },
     dragElementEnd() {
-      this.element.classList.remove('sortable-selected');
+      this.element.classList.remove('sortable-selected', 'vertical-panning', 'horizontal-panning');
 
       this.item.translateY = this.snapToPosition({
         value: this.getTranslateY(),
@@ -134,42 +134,26 @@ export default {
 
       return 0;
     },
-    dragElement(evt) {
-      const event = evt || window.event;
+    moveElements(params) {
+      const options = params || {};
 
-      // Calculate the new cursor position:
-      this.positionX = this.pointerY - event.center.x;
-      this.positionY = this.pointerY - event.center.y;
-      this.pointerY = event.center.y;
+      this.element.classList.add(`${options.direction}-panning`);
 
       // Get the translateY value
       const translateY = this.getTranslateY();
 
-      // TODO: Divide into function to handle vertical drags and horizontal drags
-      // console.log('Horizontal size', this.element.offsetLeft - this.positionX);
-      // element.style.left = `${element.offsetLeft - this.positionX}px`;
-
-      // Create draggable limits
-      const containerLimit = {
-        top: 0,
-        bottom: document.querySelector('.inner-sortable-container').offsetHeight
-          - this.element.offsetHeight - 1 // 1px of top border
-      };
-
       // Min and Max position given the limits
       const yPosition = Math.min(
-        containerLimit.bottom,
+        options.limits.bottom,
         Math.max(
-          containerLimit.top,
+          options.limits.top,
           // Creates resistance
           translateY + ((this.element.offsetTop - this.positionY) / 5)
         )
       );
 
-      // Move element
-      this.element.classList.add('sortable-selected');
-
       const elementIndex = parseInt(this.element.getAttribute('data-sort'), 10);
+
       this.sortingDirection = yPosition <= translateY
         ? 'up'
         : 'down';
@@ -214,16 +198,44 @@ export default {
       bus.$emit('reoder-data');
 
       // Snap into new position
-      this.$nextTick(() => {
-        this.animateValue({
-          item: this.item,
-          start: this.item.translateY,
-          end: this.snapToPosition({
-            value: this.getTranslateY(),
-            itemHovered
-          }),
-          duration: this.animationDuration
-        });
+      this.animateValue({
+        item: this.item,
+        start: this.item.translateY,
+        end: this.snapToPosition({
+          value: this.getTranslateY(),
+          itemHovered
+        }),
+        duration: this.animationDuration
+      });
+    },
+    dragElement(evt) {
+      const event = evt || window.event;
+
+      // Calculate the new cursor position:
+      this.positionX = this.pointerY - event.center.x;
+      this.positionY = this.pointerY - event.center.y;
+      this.pointerY = event.center.y;
+
+      // TODO: Divide into function to handle vertical drags and horizontal drags
+      // console.log('Horizontal size', this.element.offsetLeft - this.positionX);
+      // element.style.left = `${element.offsetLeft - this.positionX}px`;
+
+      // Move element
+      this.element.classList.add('sortable-selected');
+
+      // Create draggable limits
+      const containerLimit = {
+        top: 0,
+        bottom: document.querySelector('.inner-sortable-container').offsetHeight
+          - this.element.offsetHeight - 1 // 1px of top border
+      };
+
+      this.moveElements({
+        direction: event.additionalEvent === 'panup'
+          || event.additionalEvent === 'pandown'
+          ? 'vertical'
+          : 'horizontal',
+        limits: containerLimit
       });
     },
     dragElementStart(evt) {
