@@ -21,7 +21,8 @@
 <script>
 import Hammer from 'hammerjs/hammer';
 import {
-  findIndex
+  findIndex,
+  orderBy
 } from 'lodash';
 import bus from '../libs/bus';
 
@@ -29,6 +30,7 @@ export default {
   data() {
     return {
       hammer: undefined,
+      itemHeight: 24,
       defaultTop: 24,
       positionX: 0,
       positionY: 0,
@@ -60,9 +62,7 @@ export default {
     }
   },
   methods: {
-    animateValue(params) {
-      const data = params || {};
-
+    animateValue(data = {}) {
       data.duration = data.duration || this.animationDuration;
 
       let startTimestamp = null;
@@ -83,35 +83,20 @@ export default {
 
       window.requestAnimationFrame(step);
     },
-    getTranslateY() {
-      const trans = getComputedStyle(this.element).getPropertyValue('transform');
-      const matrix = trans.replace(/[^0-9\-.,]/g, '').split(',');
-      const translateY = parseFloat((matrix.length > 6) ? matrix[13] : matrix[5]);
-
-      return translateY;
-    },
-    dragElementEnd() {
-      this.element.classList.remove('sortable-selected', 'vertical-panning', 'horizontal-panning');
-
-      this.item.translateY = this.snapToPosition({
-        value: this.getTranslateY(),
-        reset: true
-      });
-      this.item.top = this.snapToPosition({
-        value: this.getTranslateY(),
-        reset: true
-      });
-
-      bus.$emit('reoder-data');
-    },
-    snapToPosition(params) {
-      const data = params || {};
-
+    snapToPosition(data = {}) {
       let lastItemPosition;
 
-      const lastItemIndex = this.fullData.length - 1;
-      const indexDifference = lastItemIndex - this.index;
+      const listData = orderBy(this.fullData, 'translateY', 'asc');
+      const lastItemIndex = listData.length - 1;
+      const index = findIndex(listData, { translateY: Math.floor(data.value) }) || this.index;
+      const indexDifference = lastItemIndex - index;
       const increment = indexDifference > 0 ? this.defaultTop + 1 : 1;
+
+      if (data.reset) {
+        return this.sortingDirection === 'up'
+          ? Math.min(data.value, this.itemHeight * (listData.length - 1))
+          : Math.max(data.value, this.itemHeight * (listData.length - 1));
+      }
 
       if (data.itemHovered) {
         lastItemPosition = data.itemHovered.top;
@@ -122,24 +107,23 @@ export default {
       if (data.value > lastItemPosition) {
         const newNumber = lastItemPosition + increment;
 
-        return Math.floor(newNumber / 24.0) * 24;
+        return Math.floor(newNumber / this.itemHeight) * this.itemHeight;
       }
 
-      if (data.reset) {
-        return this.sortingDirection === 'up'
-          ? Math.ceil(data.value / 24.0) * 24
-          : Math.floor(data.value / 24.0) * 24;
-      }
-
-      if (data.value > 24) {
-        return Math.floor(data.value / 24.0) * 24;
+      if (data.value > this.itemHeight) {
+        return Math.floor(data.value / this.itemHeight) * this.itemHeight;
       }
 
       return 0;
     },
-    moveElements(params) {
-      const options = params || {};
+    getTranslateY() {
+      const trans = getComputedStyle(this.element).getPropertyValue('transform');
+      const matrix = trans.replace(/[^0-9\-.,]/g, '').split(',');
+      const translateY = parseFloat((matrix.length > 6) ? matrix[13] : matrix[5]);
 
+      return translateY;
+    },
+    moveElements(options = {}) {
       this.element.classList.add(`${options.direction}-panning`);
 
       // Get the translateY value
@@ -160,7 +144,6 @@ export default {
       this.sortingDirection = yPosition <= translateY
         ? 'up'
         : 'down';
-
       this.item.translateY = yPosition;
 
       // Find the index of the item being hovered by their position
@@ -184,7 +167,8 @@ export default {
 
       // Move hovered item
       const itemHovered = this.fullData[itemIndex];
-      const newDefaultTop = this.sortingDirection === 'up'
+
+      itemHovered.top += this.sortingDirection === 'up'
         ? this.defaultTop
         : -this.defaultTop;
 
@@ -192,27 +176,46 @@ export default {
       this.animateValue({
         item: itemHovered,
         start: itemHovered.translateY,
-        end: itemHovered.top + newDefaultTop,
+        end: itemHovered.top,
         duration: this.animationDuration
       });
 
-      itemHovered.top += newDefaultTop;
-
-      bus.$emit('reoder-data');
-
-      // Snap into new position
+      // Snap dragged item into new position
       this.animateValue({
         item: this.item,
         start: this.item.translateY,
         end: this.snapToPosition({
-          value: this.getTranslateY(),
+          value: translateY,
           itemHovered
         }),
         duration: this.animationDuration
       });
     },
+    dragElementStart(evt) {
+      const event = evt || window.event;
+
+      this.element = event.target;
+      this.pointerY = event.center.y;
+    },
+    dragElementEnd() {
+      this.element.classList.remove('sortable-selected', 'vertical-panning', 'horizontal-panning');
+
+      const top = this.snapToPosition({
+        value: this.getTranslateY(),
+        reset: true
+      });
+
+      this.item.translateY = top;
+      this.item.top = top;
+
+      setTimeout(() => {
+        bus.$emit('reoder-data');
+      }, this.animationDuration);
+    },
     dragElement(evt) {
       const event = evt || window.event;
+
+      this.element.classList.add('sortable-selected');
 
       // Calculate the new cursor position:
       this.positionX = this.pointerY - event.center.x;
@@ -223,16 +226,14 @@ export default {
       // console.log('Horizontal size', this.element.offsetLeft - this.positionX);
       // element.style.left = `${element.offsetLeft - this.positionX}px`;
 
-      // Move element
-      this.element.classList.add('sortable-selected');
-
       // Create draggable limits
       const containerLimit = {
         top: 0,
         bottom: document.querySelector('.inner-sortable-container').offsetHeight
-          - this.element.offsetHeight - 1 // 1px of top border
+          - this.element.offsetHeight
       };
 
+      // Move element
       this.moveElements({
         direction: event.additionalEvent === 'panup'
           || event.additionalEvent === 'pandown'
@@ -240,13 +241,6 @@ export default {
           : 'horizontal',
         limits: containerLimit
       });
-    },
-    dragElementStart(evt) {
-      const event = evt || window.event;
-
-      this.element = event.target;
-
-      this.pointerY = event.clientY;
     },
     attachHandlers() {
       const element = this.$refs.sortableItem;
